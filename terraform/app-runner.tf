@@ -1,3 +1,7 @@
+locals {
+  create_access_iam_role = false
+}
+
 resource "aws_default_vpc" "default_vpc" {
 }
 
@@ -39,26 +43,37 @@ resource "aws_security_group" "sg" {
 }
 
 resource "aws_iam_role" "app_runner_role" {
-  name = "${var.project_name}-${var.env}-app-runner-role"
+  name = "app-runner-poc"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect = "Allow"
         Principal = {
-          Service = "tasks.apprunner.amazonaws.com"
+          Service = "build.apprunner.amazonaws.com"
         }
         Action = "sts:AssumeRole"
-      },
+      }
     ]
   })
+
+  tags = {
+    Terraform = "true"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "app_runner_policy_attachment" {
+  role       = aws_iam_role.app_runner_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
 }
 
 module "app_runner_image_base" {
-  source          = "terraform-aws-modules/app-runner/aws"
-  service_name    = var.project_name
-  count           = 1
-  private_ecr_arn = aws_ecr_repository.application_ecr_repo.arn
+  source                   = "terraform-aws-modules/app-runner/aws"
+  service_name             = var.project_name
+  create_instance_iam_role = false
+
+  # private_ecr_arn = aws_iam_role.app_runner_role.arn
   # From shared configs
   # IAM instance profile permissions to access secrets
   # instance_policy_statements = {

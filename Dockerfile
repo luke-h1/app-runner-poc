@@ -1,11 +1,12 @@
-FROM node:20.11.0-alpine AS base
+FROM --platform=linux/amd64 node:20.11.0-alpine AS base
+
+
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 RUN corepack enable
 
-WORKDIR /app
 
 FROM base AS builder
 COPY package.json .
@@ -19,4 +20,4 @@ ENV NODE_ENV=production
 ENV TZ=Europe/London
 
 USER node 
-CMD ["pnpm", "start"]
+CMD ["node", "src/index.js"]

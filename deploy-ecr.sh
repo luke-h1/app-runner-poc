@@ -18,6 +18,4 @@ aws ecr get-login-password --region eu-west-2 | docker login --username AWS --pa
 docker build -t app-runner-poc .
 
 docker tag app-runner-poc:latest 753493924839.dkr.ecr.eu-west-2.amazonaws.com/app-runner-poc:latest
-
 docker push 753493924839.dkr.ecr.eu-west-2.amazonaws.com/app-runner-poc:latest
-
