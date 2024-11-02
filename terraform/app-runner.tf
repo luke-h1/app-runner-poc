@@ -38,12 +38,27 @@ resource "aws_security_group" "sg" {
   }
 }
 
-module "app_runner_image_base" {
-  source = "terraform-aws-modules/app-runner/aws"
+resource "aws_iam_role" "app_runner_role" {
+  name = "${var.project_name}-${var.env}-app-runner-role"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "tasks.apprunner.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      },
+    ]
+  })
+}
 
-  service_name = var.project_name
-  count        = 1
-  # private_ecr_arn = 
+module "app_runner_image_base" {
+  source          = "terraform-aws-modules/app-runner/aws"
+  service_name    = var.project_name
+  count           = 1
+  private_ecr_arn = aws_ecr_repository.application_ecr_repo.arn
   # From shared configs
   # IAM instance profile permissions to access secrets
   # instance_policy_statements = {
@@ -55,6 +70,10 @@ module "app_runner_image_base" {
 
   source_configuration = {
     auto_deployments_enabled = false
+    authentication_configuration = {
+      # connection_arn  = aws_ecr_repository.application_ecr_repo.arn
+      access_role_arn = aws_iam_role.app_runner_role.arn
+    }
     image_repository = {
       image_configuration = {
         port = 8000
@@ -66,7 +85,7 @@ module "app_runner_image_base" {
         # }
       }
       image_identifier      = "${aws_ecr_repository.application_ecr_repo.repository_url}:${var.docker_image_tag}"
-      image_repository_type = "ECR_PRIVATE"
+      image_repository_type = "ECR"
     }
   }
 
