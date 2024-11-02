@@ -17,7 +17,6 @@ resource "aws_default_subnet" "application_subnet_c" {
   availability_zone = "eu-west-2c"
 }
 
-
 resource "aws_security_group" "sg" {
   name   = "${var.project_name}-${var.env}-app-runner-security-group"
   vpc_id = aws_default_vpc.default_vpc.id
@@ -68,59 +67,65 @@ resource "aws_iam_role_policy_attachment" "app_runner_policy_attachment" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
 }
 
-module "app_runner_image_base" {
-  source                   = "terraform-aws-modules/app-runner/aws"
-  service_name             = var.project_name
-  create_instance_iam_role = false
+resource "aws_apprunner_custom_domain_association" "example" {
+  domain_name = "poc.lhowsam.com"
+  service_arn = aws_apprunner_service.app_runner_service.arn
+}
 
-  # private_ecr_arn = aws_iam_role.app_runner_role.arn
-  # From shared configs
-  # IAM instance profile permissions to access secrets
-  # instance_policy_statements = {
-  #   GetSecretValue = {
-  #     actions   = ["secretsmanager:GetSecretValue"]
-  #     resources = [aws_secretsmanager_secret.this.arn]
-  #   }
-  # }
+resource "aws_apprunner_service" "app_runner_service" {
+  service_name = var.project_name
+  source_configuration {
 
-  source_configuration = {
-    auto_deployments_enabled = false
-    authentication_configuration = {
-      # connection_arn  = aws_ecr_repository.application_ecr_repo.arn
+    auto_deployments_enabled = true
+    authentication_configuration {
       access_role_arn = aws_iam_role.app_runner_role.arn
     }
-    image_repository = {
-      image_configuration = {
+    image_repository {
+      image_configuration {
         port = 8000
         runtime_environment_variables = {
           MY_VARIABLE = "hello!"
         }
-        # runtime_environment_secrets = {
-        #   MY_SECRET = aws_secretsmanager_secret.this.arn
-        # }
       }
       image_identifier      = "${aws_ecr_repository.application_ecr_repo.repository_url}:${var.docker_image_tag}"
       image_repository_type = "ECR"
     }
   }
 
-  create_vpc_connector = true
-  vpc_connector_subnets = [
-    "${aws_default_subnet.application_subnet_a.id}",
-    "${aws_default_subnet.application_subnet_b.id}",
-    "${aws_default_subnet.application_subnet_c.id}"
-  ]
-  vpc_connector_security_groups = [aws_security_group.sg.id]
-  network_configuration = {
-    egress_configuration = {
-      egress_type = "VPC"
-    }
+  instance_configuration {
+    cpu    = "256"
+    memory = "512"
   }
 
-  enable_observability_configuration = true
+
+  network_configuration {
+
+    egress_configuration {
+      egress_type       = "VPC"
+      vpc_connector_arn = aws_apprunner_vpc_connector.app_runner_vpc_connector.arn
+    }
+    ingress_configuration {
+      is_publicly_accessible = true
+    }
+  }
+  health_check_configuration {
+    protocol = "HTTP"
+    path     = "/api/healthcheck"
+  }
 
   tags = {
     Terraform   = "true"
     Environment = "staging"
   }
+}
+
+resource "aws_apprunner_vpc_connector" "app_runner_vpc_connector" {
+  vpc_connector_name = "${var.project_name}-vpc-connector"
+  subnets = [
+    aws_default_subnet.application_subnet_a.id,
+    aws_default_subnet.application_subnet_b.id,
+    aws_default_subnet.application_subnet_c.id
+  ]
+  security_groups = [aws_security_group.sg.id]
+
 }
