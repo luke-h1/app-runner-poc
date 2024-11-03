@@ -1,7 +1,11 @@
 resource "aws_ecr_repository" "application_ecr_repo" {
   name = var.project_name
+
   # required if we need to do a full teardown
   force_delete = true
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 
   tags = merge(var.tags, {
     "Name" = "${var.project_name}-${var.env}-ecr-repo"

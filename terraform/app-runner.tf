@@ -26,12 +26,6 @@ resource "aws_security_group" "sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
 
   egress {
     from_port   = 0
@@ -73,9 +67,9 @@ resource "aws_apprunner_custom_domain_association" "example" {
 }
 
 resource "aws_apprunner_auto_scaling_configuration_version" "scale" {
-  auto_scaling_configuration_name = var.project_name
+  auto_scaling_configuration_name = "${var.project_name}-stg"
 
-  max_concurrency = 20000 # 20k
+  max_concurrency = 200
   max_size        = 1
   min_size        = 1
 
@@ -85,7 +79,7 @@ resource "aws_apprunner_service" "app_runner_service" {
   service_name = var.project_name
   source_configuration {
 
-    auto_deployments_enabled = true
+    auto_deployments_enabled = false
     authentication_configuration {
       access_role_arn = aws_iam_role.app_runner_role.arn
     }
@@ -106,8 +100,6 @@ resource "aws_apprunner_service" "app_runner_service" {
     memory = "512"
   }
   auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.scale.arn
-
-
   network_configuration {
 
     egress_configuration {
