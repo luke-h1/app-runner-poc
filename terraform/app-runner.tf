@@ -72,6 +72,15 @@ resource "aws_apprunner_custom_domain_association" "example" {
   service_arn = aws_apprunner_service.app_runner_service.arn
 }
 
+resource "aws_apprunner_auto_scaling_configuration_version" "scale" {
+  auto_scaling_configuration_name = var.project_name
+
+  max_concurrency = 20000 # 20k
+  max_size        = 1
+  min_size        = 1
+
+}
+
 resource "aws_apprunner_service" "app_runner_service" {
   service_name = var.project_name
   source_configuration {
@@ -96,6 +105,7 @@ resource "aws_apprunner_service" "app_runner_service" {
     cpu    = "256"
     memory = "512"
   }
+  auto_scaling_configuration_arn = aws_apprunner_auto_scaling_configuration_version.scale.arn
 
 
   network_configuration {
